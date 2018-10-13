@@ -14,6 +14,8 @@ Arguments:
     img_data: 2D array containing intensity values
     sig: how many median absolute deviations away from the median intensity of the image for a pixel to be counted as a bragg peak
     percentile: the percentage of least intense bragg peaks discarded prior to line fitting
+    min_peaks: the minimum number of peaks to try to find. If the number of peaks detected is less than min_peaks, the peak finding procedure will be repeated with a lower sig level until either the number of peaks detected meets or exceeds min_peaks, or min_sig is reached.
+    min_sig: the minumum number of median absolute deviations before terminating the peak finding procedure. If sig < min_sig, the
     
 Returns:
     line: a tuple containing values in indicies
@@ -27,24 +29,28 @@ Returns:
         2: lower bound on confidence interval for estimated slope if x and y were swapped
         3: upper bound on the confidence interval for estimated slope if x and y were swapped
 '''
-def find_line(img_data,sig=25,percentile=60):
+def find_line(img_data,sig=25,percentile=60,min_peaks=10,min_sig=3):
     img=np.log(img_data)
-    mask=np.abs(img-np.median(img))>25*np.median(np.abs(img-np.median(img)))
-    label_img,num_label=scipy.ndimage.label(mask)
-    intensity=scipy.ndimage.maximum(img_data,label_img,range(num_label+1))
-    intensity_mask=intensity<np.percentile(intensity,percentile)
-    remove=intensity_mask[label_img]
-    label_img[remove]=0
-    labels=np.unique(label_img)
-    label_img=np.searchsorted(labels,label_img)
-    obj=scipy.ndimage.find_objects(label_img)
-
-    pos=np.zeros((len(obj),2),int)
-
-    for i in range(len(obj)):
-        p=np.unravel_index(np.argmax(img_data[obj[i][0],obj[i][1]]),dims=img_data[obj[i][0],obj[i][1]].shape)
-        p=p[0]+obj[i][0].start,p[1]+obj[i][1].start
-        pos[i,:]=p
+    num_peaks=0
+    while(num_peaks<min_peaks):
+        mask=np.abs(img-np.median(img))>sig*np.median(np.abs(img-np.median(img)))
+        label_img,num_label=scipy.ndimage.label(mask)
+        intensity=scipy.ndimage.maximum(img_data,label_img,range(num_label+1))
+        intensity_mask=intensity<np.percentile(intensity,percentile)
+        remove=intensity_mask[label_img]
+        label_img[remove]=0
+        labels=np.unique(label_img)
+        label_img=np.searchsorted(labels,label_img)
+        obj=scipy.ndimage.find_objects(label_img)
+        pos=np.zeros((len(obj),2),int)
+        for i in range(len(obj)):
+            p=np.unravel_index(np.argmax(img_data[obj[i][0],obj[i][1]]),dims=img_data[obj[i][0],obj[i][1]].shape)
+            p=p[0]+obj[i][0].start,p[1]+obj[i][1].start
+            pos[i,:]=p
+        num_peaks=pos.shape[0]
+        sig-=1
+    if(num_peaks<min_peaks):    
+        raise ValueError('Minumum significance level has been reached')  
     try:
         return scipy.stats.theilslopes(pos[:,0],pos[:,1])
     except IndexError:

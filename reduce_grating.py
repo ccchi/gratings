@@ -1,5 +1,4 @@
 from grating_tools import *
-import numpy as np
 import argparse
 
 parser=argparse.ArgumentParser(description='Extract 1 dimensional data from line pattern x-ray scattering dataset.')
@@ -8,4 +7,4 @@ parser.add_argument('prefix',metavar='prefix',type=str,help='File path and prefi
 
 args=parser.parse_args()
 spect=reduce_dataset(args.prefix)
-np.savetxt(args.output+'.txt',spect)
+np.savetxt(args.output,spect)
