@@ -67,47 +67,40 @@ Arguments:
         0: slope
         1: y-intercept
     intensities will be taken along the line if provided. 
-    percentiles: if line is not provided, find_line will be called using the provided percentiles. The collected line profiles are
-    merged into a final profile by taking the maximum intensity amongst all line profiles at corresponding indices.
 
 Returns:
     1D array containing reduced 1D intensity profile
 '''
-def reduce_data(img_data,line=None,percentiles=(60,70,80,90,95)):
+def reduce_data(img_data,line=None):
     num_points=img_data.shape[0]
-    percentiles=percentiles
-    trials=np.zeros((len(percentiles),num_points))
-    trial=0
     if line is None:
-        for percentile in percentiles:
-            line=find_line(img_data,percentile=percentile)
-            yint=line[1]
-            slope=line[0]
-            if np.isinf(slope):
-                x0=yint
-                x1=yint
-                y0=0
-                y1=img_data.shape[1]
-            elif yint<0:
-                y0=0 
-                x0=-yint/slope
-            elif yint>img_data.shape[1]-1:
-                y0=img_data.shape[1]-1
-                x0=y0/slope-yint/slope
-            else:
-                x0=0
-                y0=yint
-            out_bound=slope*img_data.shape[0]-1+yint
-            if not np.isinf(out_bound) and np.abs(slope)>1 and (out_bound<0 or out_bound>img_data.shape[0]-1):
-                y1=(img_data.shape[0]-1)*(out_bound>img_data.shape[0]-1)
-                x1=y1/slope-yint/slope
-            elif not np.isinf(out_bound):
-                x1=img_data.shape[1]-1
-                y1=slope*img_data.shape[1]-1+yint
-            x,y=np.linspace(x0,x1,num_points),np.linspace(y0,y1,num_points)
-            trials[trial,:]=scipy.ndimage.map_coordinates(img_data,np.vstack((y,x)))
-            trial+=1
-        return np.amax(trials,axis=0)
+        line=find_line(img_data,percentile=percentile)
+        yint=line[1]
+        slope=line[0]
+        if np.isinf(slope):
+            x0=yint
+            x1=yint
+            y0=0
+            y1=img_data.shape[1]
+        elif yint<0:
+            y0=0 
+            x0=-yint/slope
+        elif yint>img_data.shape[1]-1:
+            y0=img_data.shape[1]-1
+            x0=y0/slope-yint/slope
+        else:
+            x0=0
+            y0=yint
+        out_bound=slope*img_data.shape[0]-1+yint
+        if not np.isinf(out_bound) and np.abs(slope)>1 and (out_bound<0 or out_bound>img_data.shape[0]-1):
+            y1=(img_data.shape[0]-1)*(out_bound>img_data.shape[0]-1)
+            x1=y1/slope-yint/slope
+        elif not np.isinf(out_bound):
+            x1=img_data.shape[1]-1
+            y1=slope*img_data.shape[1]-1+yint
+        x,y=np.linspace(x0,x1,num_points),np.linspace(y0,y1,num_points)
+        return scipy.ndimage.map_coordinates(img_data,np.vstack((y,x)))
+
     else:
         yint=line[1]
         slope=line[0]
@@ -177,7 +170,7 @@ def reduce_dataset(prefix,mask_sig=50):
     slope,yint=scipy.stats.theilslopes(pts[1],pts[0])[:2]
     yint=yint+obj[0][1].start-obj[0][0].start*slope
     
-    shift_to=int(round(slope*80+yint))
+    shift_to=int(round(slope*spect.shape[0]+yint))
     for i in range(spect.shape[0]):
         peak_pos=int(round(i*slope+yint))
         spect[i,:]=np.roll(spect[i,:],shift=shift_to-peak_pos)
