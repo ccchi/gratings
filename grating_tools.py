@@ -71,7 +71,7 @@ Arguments:
 Returns:
     1D array containing reduced 1D intensity profile
 '''
-def reduce_data(img_data,line=None):
+def reduce_data(img_data,line=None,percentile=60):
     num_points=img_data.shape[0]
     if line is None:
         line=find_line(img_data,percentile=percentile)
